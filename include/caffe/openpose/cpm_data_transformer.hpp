@@ -1,6 +1,10 @@
 #ifndef CAFFE_OPENPOSE_CPM_DATA_TRANSFORMER_HPP
 #define CAFFE_OPENPOSE_CPM_DATA_TRANSFORMER_HPP
 
+// OpenPose: added
+// This function has been originally copied from include/caffe/data_transformer.hpp (both hpp and cpp)
+// OpenPose: added end
+
 #include <vector>
 // OpenPose: added
 #ifdef USE_OPENCV
@@ -12,6 +16,16 @@
 #include "caffe/proto/caffe.pb.h"
 
 namespace caffe {
+
+// OpenPose: added
+enum class Model
+{
+    COCO_18 = 0,
+    MPI_15 = 1,
+    BODY_22 = 2,
+    Size,
+};
+// OpenPose: added end
 
 /**
  * @brief Applies common transformations to the input data, such as
@@ -29,45 +43,7 @@ public:
      */
     void InitRand();
 
-    /**
-     * @brief Applies the transformation defined in the data layer's
-     * transform_param block to the data.
-     *
-     * @param datum
-     *    Datum containing the data to be transformed.
-     * @param transformed_blob
-     *    This is destination blob. It can be part of top blob's data if
-     *    set_cpu_data() is used. See data_layer.cpp for an example.
-     */
-    void Transform(const Datum& datum, Blob<Dtype>* transformed_blob);
-
-    /**
-     * @brief Applies the transformation defined in the data layer's
-     * transform_param block to a vector of Datum.
-     *
-     * @param datum_vector
-     *    A vector of Datum containing the data to be transformed.
-     * @param transformed_blob
-     *    This is destination blob. It can be part of top blob's data if
-     *    set_cpu_data() is used. See memory_layer.cpp for an example.
-     */
-    void Transform(const vector<Datum> & datum_vector,
-                   Blob<Dtype>* transformed_blob);
-
 #ifdef USE_OPENCV
-    /**
-     * @brief Applies the transformation defined in the data layer's
-     * transform_param block to a vector of Mat.
-     *
-     * @param mat_vector
-     *    A vector of Mat containing the data to be transformed.
-     * @param transformed_blob
-     *    This is destination blob. It can be part of top blob's data if
-     *    set_cpu_data() is used. See memory_layer.cpp for an example.
-     */
-    void Transform(const vector<cv::Mat> & mat_vector,
-                   Blob<Dtype>* transformed_blob);
-
     /**
      * @brief Applies the transformation defined in the data layer's
      * transform_param block to a cv::Mat
@@ -79,56 +55,6 @@ public:
      *    set_cpu_data() is used. See image_data_layer.cpp for an example.
      */
     void Transform(const cv::Mat& cv_img, Blob<Dtype>* transformed_blob);
-#endif  // USE_OPENCV
-
-    /**
-     * @brief Applies the same transformation defined in the data layer's
-     * transform_param block to all the num images in a input_blob.
-     *
-     * @param input_blob
-     *    A Blob containing the data to be transformed. It applies the same
-     *    transformation to all the num images in the blob.
-     * @param transformed_blob
-     *    This is destination blob, it will contain as many images as the
-     *    input blob. It can be part of top blob's data.
-     */
-    void Transform(Blob<Dtype>* input_blob, Blob<Dtype>* transformed_blob);
-
-    /**
-     * @brief Infers the shape of transformed_blob will have when
-     *    the transformation is applied to the data.
-     *
-     * @param datum
-     *    Datum containing the data to be transformed.
-     */
-    vector<int> InferBlobShape(const Datum& datum);
-    /**
-     * @brief Infers the shape of transformed_blob will have when
-     *    the transformation is applied to the data.
-     *    It uses the first element to infer the shape of the blob.
-     *
-     * @param datum_vector
-     *    A vector of Datum containing the data to be transformed.
-     */
-    vector<int> InferBlobShape(const vector<Datum> & datum_vector);
-    /**
-     * @brief Infers the shape of transformed_blob will have when
-     *    the transformation is applied to the data.
-     *    It uses the first element to infer the shape of the blob.
-     *
-     * @param mat_vector
-     *    A vector of Mat containing the data to be transformed.
-     */
-#ifdef USE_OPENCV
-    vector<int> InferBlobShape(const vector<cv::Mat> & mat_vector);
-    /**
-     * @brief Infers the shape of transformed_blob will have when
-     *    the transformation is applied to the data.
-     *
-     * @param cv_img
-     *    cv::Mat containing the data to be transformed.
-     */
-    vector<int> InferBlobShape(const cv::Mat& cv_img);
 #endif  // USE_OPENCV
 
 protected:
@@ -155,22 +81,26 @@ protected:
 
     // OpenPose: added
 public:
-    void Transform_nv(const Datum& datum, Blob<Dtype>* transformed_blob, Blob<Dtype>* transformed_label_blob, const int counter); //image and label
+    // Image and label
+    void Transform_nv(const Datum& datum, Blob<Dtype>* transformed_blob, Blob<Dtype>* transformed_label_blob, const int counter);
 
 protected:
-    struct AugmentSelection {
-        bool flip;
-        float degree;
-        cv::Size crop;
-        float scale;
+    struct AugmentSelection
+    {
+        bool flip = false;
+        float degree = 0.f;
+        cv::Size crop = cv::Size{};
+        float scale = 0.f;
     };
 
-    struct Joints {
-        std::vector<cv::Point2f> joints;
+    struct Joints
+    {
+        std::vector<cv::Point2f> points;
         std::vector<float> isVisible;
     };
 
-    struct MetaData {
+    struct MetaData
+    {
         std::string datasetString;
         cv::Size imageSize;
         bool isValidation;
@@ -189,6 +119,7 @@ protected:
         std::vector<Joints> jointsOthers; //length is numberOtherPeople
     };
 
+    Model mModel;
     int mNumberPartsInLmdb;
     int mNumberParts;
     bool mIsTableSet;
@@ -201,8 +132,8 @@ protected:
     bool augmentationFlip(cv::Mat& imageAugmented, cv::Mat& maskMiss, cv::Mat& maskAll, MetaData& metaData, const cv::Mat& image) const;
     float augmentationRotate(cv::Mat& imageAugmented, cv::Mat& maskMiss, cv::Mat& maskAll, MetaData& metaData, const cv::Mat& imageSource) const;
     float augmentationScale(cv::Mat& imageTemp, cv::Mat& maskMiss, cv::Mat& maskAll, MetaData& metaData, const cv::Mat& image) const;
-    cv::Size augmentationCropped(cv::Mat& imageAugmented, cv::Mat& maskMissAugmented, cv::Mat& maskAllAugmented, MetaData& metaData, const cv::Mat& imageTemp,
-                                 const cv::Mat& maskMiss, const cv::Mat& maskAll) const;
+    cv::Size augmentationCropped(cv::Mat& imageAugmented, cv::Mat& maskMissAugmented, cv::Mat& maskAllAugmented, MetaData& metaData,
+                                 const cv::Mat& imageTemp, const cv::Mat& maskMiss, const cv::Mat& maskAll) const;
 
     void rotatePoint(cv::Point2f& point2f, const cv::Mat& R) const;
     bool onPlane(const cv::Point& point, const cv::Size& imageSize) const;
