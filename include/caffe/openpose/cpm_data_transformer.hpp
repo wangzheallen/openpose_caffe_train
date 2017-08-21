@@ -90,7 +90,7 @@ protected:
         bool flip = false;
         float degree = 0.f;
         cv::Size crop = cv::Size{};
-        float scale = 0.f;
+        float scale = 1.f;
     };
 
     struct Joints
