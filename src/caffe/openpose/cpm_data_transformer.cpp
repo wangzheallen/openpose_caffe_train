@@ -860,8 +860,8 @@ cv::Size CPMDataTransformer<Dtype>::augmentationCropped(cv::Mat& imageTarget, cv
         (int)(metaData.objpos.x + pointOffset.width),
         (int)(metaData.objpos.y + pointOffset.height),
     };
-    
-    imageTarget = cv::Mat(cropY, cropX, CV_8UC3);
+    imageTarget = 128*cv::Mat::ones(cropY, cropX, CV_8UC3);
+    //imageTarget = cv::Mat(cropY, cropX, CV_8UC3);
     if (!maskMiss.empty())
         maskMissAugmented = cv::Mat(cropY, cropX, CV_8UC1); //for MPI, COCO with cv::Scalar{255};
     else
@@ -1007,35 +1007,43 @@ void CPMDataTransformer<Dtype>::Transform_nv(Dtype* transformedData, Dtype* tran
         maskAll = cv::Mat(datumHeight, datumWidth, CV_8UC1);
 
     int offset = image.rows * image.cols;
-    for (auto y = 0; y < image.rows; ++y)
-    {
-        for (auto x = 0; x < image.cols; ++x)
-        {
-            for (auto c = 0; c < 3; c++)
-            {
-                const int dindex = c*offset + y*image.cols + x;
-                image.at<cv::Vec3b>(y, x) = (hasUint8 ? static_cast<Dtype>(static_cast<uint8_t>(data[dindex]))
-                                            : datum.float_data(dindex));
-            }
+    int dindex;
+    Dtype d_element;
+    const bool has_uint8 = data.size() > 0;
+    for (int i = 0; i < image.rows; ++i) {
+     for (int j = 0; j < image.cols; ++j) {
+      cv::Vec3b& rgb = image.at<cv::Vec3b>(i, j);
+      for(int c = 0; c < 3; c++){
+        dindex = c*offset + i*image.cols + j;
+        if (has_uint8)
+          d_element = static_cast<Dtype>(static_cast<uint8_t>(data[dindex]));
+        else
+          d_element = datum.float_data(dindex);
+        rgb[c] = d_element;
+      }
 
-            if (MODE >= 5)
-            {
-                const int dindex = 4*offset + y*image.cols + x;
-                const auto dElement = (hasUint8 ? static_cast<Dtype>(static_cast<uint8_t>(data[dindex]))
-                                        : datum.float_data(dindex));
-                if (round(dElement/255)!=1 && round(dElement/255)!=0)
-                    std::cout << dElement << " " << round(dElement/255) << std::endl;
-                maskMiss.at<uchar>(y, x) = dElement; //round(dElement/255);
-            }
-
-            if (MODE == 6)
-            {
-                const int dindex = 5*offset + y*image.cols + x;
-                maskAll.at<uchar>(y, x) = (hasUint8 ? static_cast<Dtype>(static_cast<uint8_t>(data[dindex]))
-                                            : datum.float_data(dindex));
-            }
+      if(MODE >= 5){
+        dindex = 4*offset + i*image.cols + j;
+        if (has_uint8)
+          d_element = static_cast<Dtype>(static_cast<uint8_t>(data[dindex]));
+        else
+          d_element = datum.float_data(dindex);
+        if (round(d_element/255)!=1 && round(d_element/255)!=0){
+          std::cout << d_element << " " << round(d_element/255) << std::endl;
         }
+        maskMiss.at<uchar>(i, j) = d_element; //round(d_element/255);
+      }
+
+      if(MODE == 6){
+        dindex = 5*offset + i*image.cols + j;
+        if (has_uint8)
+          d_element = static_cast<Dtype>(static_cast<uint8_t>(data[dindex]));
+        else
+          d_element = datum.float_data(dindex);
+        maskAll.at<uchar>(i, j) = d_element;
+      }
     }
+  }
     VLOG(2) << "  rgb[:] = datum: " << timer1.MicroSeconds()/1000.0 << " ms";
     timer1.Start();
 
